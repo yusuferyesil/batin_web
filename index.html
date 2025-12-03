@@ -3,83 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radyoloji Raporu Analiz Paneli</title>
+    <title>İleri Seviye Radyoloji Raporu Analizi</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; }
-        .score-badge { padding: 4px 8px; border-radius: 9999px; font-weight: bold; font-size: 0.8rem; }
-        .score-high { background-color: #dcfce7; color: #166534; } /* Kolay */
-        .score-med { background-color: #fef9c3; color: #854d0e; }  /* Orta */
-        .score-low { background-color: #fee2e2; color: #991b1b; }  /* Zor */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; }
+        .score-badge { padding: 4px 8px; border-radius: 9999px; font-weight: bold; font-size: 0.75rem; letter-spacing: 0.025em; }
+        .score-high { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; } 
+        .score-med { background-color: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+        .score-low { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
         
-        .tab-btn.active { border-bottom: 2px solid #2563eb; color: #2563eb; }
+        .tab-btn { transition: all 0.2s; }
+        .tab-btn.active { border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: 600; }
         .hidden-tab { display: none; }
+        
+        /* Markdown Bold Stili */
+        strong { font-weight: 700; color: #0f172a; background-color: #fffbeb; padding: 0 2px; border-radius: 2px; }
     </style>
 </head>
-<body class="p-6">
+<body class="p-6 text-slate-800">
 
     <div class="max-w-7xl mx-auto">
         
-        <header class="bg-white rounded-lg shadow-md p-6 mb-6 flex justify-between items-center">
+        <header class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-gray-800">🏥 Radyoloji Raporu Sadeleştirme Analizi</h1>
-                <p class="text-gray-500 text-sm mt-1">Orijinal raporlar, AI çıktıları ve okunabilirlik skorları</p>
+                <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                    🏥 Radyoloji Raporu Sadeleştirme Analizi
+                    <span class="bg-indigo-100 text-indigo-700 text-xs px-2 py-1 rounded-full border border-indigo-200">v2.0 Next-Gen</span>
+                </h1>
+                <p class="text-slate-500 text-sm mt-1">GPT 5.1, Gemini 3 Pro ve Claude Sonnet 4.5 Modellerinin Performans Karşılaştırması</p>
             </div>
             
-            <div class="relative">
-                <input type="file" id="fileInput" accept=".xlsx, .csv" class="block w-full text-sm text-gray-500
-                  file:mr-4 file:py-2 file:px-4
+            <div class="relative w-full md:w-auto">
+                <input type="file" id="fileInput" accept=".xlsx, .csv" class="block w-full text-sm text-slate-500
+                  file:mr-4 file:py-2.5 file:px-4
                   file:rounded-full file:border-0
                   file:text-sm file:font-semibold
-                  file:bg-blue-50 file:text-blue-700
-                  hover:file:bg-blue-100 cursor-pointer"/>
-                <p class="text-xs text-gray-400 mt-1 pl-2">Lütfen 'raporlamason_detayli_skorlar.xlsx' dosyasını seçin.</p>
+                  file:bg-indigo-50 file:text-indigo-700
+                  hover:file:bg-indigo-100 cursor-pointer transition-colors"/>
+                <p class="text-[10px] text-slate-400 mt-1 pl-2 text-center md:text-left">Lütfen 'raporlamason_detayli_skorlar.xlsx' dosyasını seçin.</p>
             </div>
         </header>
 
-        <div id="loadingMessage" class="text-center p-10 text-gray-500">
-            <p class="text-xl">Verileri görmek için lütfen yukarıdan Excel dosyasını yükleyiniz.</p>
+        <div id="loadingMessage" class="flex flex-col items-center justify-center p-20 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+            <svg class="w-16 h-16 mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+            <p class="text-xl font-medium">Verileri görüntülemek için Excel dosyasını yükleyiniz.</p>
         </div>
 
-        <div id="dashboardContent" class="hidden">
+        <div id="dashboardContent" class="hidden animate-fade-in">
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-blue-500 text-center">
-                    <h3 class="text-blue-600 font-bold text-lg">Gemini 1.5 Pro</h3>
-                    <div class="text-4xl font-bold text-gray-800 my-2" id="geminiAvg">0.0</div>
-                    <p class="text-xs text-gray-400">Ortalama Ateşman Skoru</p>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500 text-center hover:shadow-md transition-shadow">
+                    <h3 class="text-blue-600 font-bold text-lg flex items-center justify-center gap-2">
+                        Gemini 3 Pro Preview
+                    </h3>
+                    <div class="text-4xl font-extrabold text-slate-800 my-3 tracking-tight" id="geminiAvg">0.0</div>
+                    <p class="text-xs text-slate-400 font-medium uppercase tracking-wide">Ortalama Ateşman Skoru</p>
                 </div>
-                <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-green-500 text-center">
-                    <h3 class="text-green-600 font-bold text-lg">ChatGPT-4o</h3>
-                    <div class="text-4xl font-bold text-gray-800 my-2" id="gptAvg">0.0</div>
-                    <p class="text-xs text-gray-400">Ortalama Ateşman Skoru</p>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500 text-center hover:shadow-md transition-shadow">
+                    <h3 class="text-emerald-600 font-bold text-lg flex items-center justify-center gap-2">
+                        GPT 5.1
+                    </h3>
+                    <div class="text-4xl font-extrabold text-slate-800 my-3 tracking-tight" id="gptAvg">0.0</div>
+                    <p class="text-xs text-slate-400 font-medium uppercase tracking-wide">Ortalama Ateşman Skoru</p>
                 </div>
-                <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-orange-500 text-center">
-                    <h3 class="text-orange-600 font-bold text-lg">Claude 3.5</h3>
-                    <div class="text-4xl font-bold text-gray-800 my-2" id="claudeAvg">0.0</div>
-                    <p class="text-xs text-gray-400">Ortalama Ateşman Skoru</p>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-orange-500 text-center hover:shadow-md transition-shadow">
+                    <h3 class="text-orange-600 font-bold text-lg flex items-center justify-center gap-2">
+                        Claude Sonnet 4.5
+                        <span class="text-[0.6rem] bg-orange-100 px-1 rounded text-orange-700">20250929</span>
+                    </h3>
+                    <div class="text-4xl font-extrabold text-slate-800 my-3 tracking-tight" id="claudeAvg">0.0</div>
+                    <p class="text-xs text-slate-400 font-medium uppercase tracking-wide">Ortalama Ateşman Skoru</p>
                 </div>
             </div>
 
-            <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-                <h2 class="text-lg font-bold mb-4 text-gray-700">Genel Karşılaştırma Grafiği</h2>
-                <div class="h-64">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-lg font-bold text-slate-700">Model Performans Karşılaştırması</h2>
+                    <span class="text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100">Yüksek skor = Daha kolay anlaşılır</span>
+                </div>
+                <div class="h-72 w-full">
                     <canvas id="comparisonChart"></canvas>
                 </div>
             </div>
 
-            <h2 class="text-xl font-bold mb-4 text-gray-800">🔍 Detaylı Rapor İncelemesi</h2>
-            <div id="reportList" class="space-y-6">
+            <div class="flex items-center gap-2 mb-6">
+                 <h2 class="text-xl font-bold text-slate-800">🔍 Detaylı Rapor Analizi</h2>
+                 <span class="text-xs font-normal text-slate-500 bg-white px-2 py-1 rounded-full border border-slate-200" id="totalCountBadge">0 Rapor</span>
+            </div>
+           
+            <div id="reportList" class="space-y-8">
                 </div>
         </div>
 
     </div>
 
     <script>
+        // --- AYARLAR: Model İsimleri ve Eşleşmeleri ---
+        // key: Excel dosyasındaki sütun başlığı (Değiştirmeyin)
+        // displayName: Ekranda görünecek havalı isim (Burayı değiştirebilirsiniz)
+        const MODEL_CONFIG = {
+            gemini: { key: 'Gemini', scoreKey: 'Gemini_Skor', displayName: 'Gemini 3 Pro Preview', color: '#3b82f6', bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700' },
+            gpt:    { key: 'Chatgpt', scoreKey: 'Chatgpt_Skor', displayName: 'GPT 5.1', color: '#10b981', bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700' },
+            claude: { key: 'Claud', scoreKey: 'Claud_Skor', displayName: 'Claude Sonnet 4.5 (20250929)', color: '#f97316', bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700' }
+        };
+
         document.getElementById('fileInput').addEventListener('change', handleFile, false);
 
         function handleFile(e) {
@@ -89,19 +120,13 @@
             reader.onload = function(event) {
                 const data = new Uint8Array(event.target.result);
                 const workbook = XLSX.read(data, {type: 'array'});
-                
-                // İlk sayfayı al
                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                
-                // JSON'a çevir
                 const rawData = XLSX.utils.sheet_to_json(firstSheet);
                 
-                // Sütun isimlerini temizle (Boşlukları sil: "Gemini " -> "Gemini")
+                // Sütun isimlerini temizle
                 const jsonData = rawData.map(row => {
                     const newRow = {};
-                    Object.keys(row).forEach(key => {
-                        newRow[key.trim()] = row[key];
-                    });
+                    Object.keys(row).forEach(key => { newRow[key.trim()] = row[key]; });
                     return newRow;
                 });
 
@@ -110,57 +135,76 @@
             reader.readAsArrayBuffer(file);
         }
 
+        // Markdown Formatlayıcı (**text** -> bold)
+        function formatMarkdown(text) {
+            if (!text) return 'Çıktı yok';
+            return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        }
+
         function processData(data) {
             document.getElementById('loadingMessage').classList.add('hidden');
             document.getElementById('dashboardContent').classList.remove('hidden');
+            document.getElementById('totalCountBadge').innerText = `${data.length} Rapor`;
 
             // --- 1. İstatistik Hesaplama ---
-            const models = [
-                { key: 'Gemini', scoreKey: 'Gemini_Skor', color: 'blue' },
-                { key: 'Chatgpt', scoreKey: 'Chatgpt_Skor', color: 'green' },
-                { key: 'Claud', scoreKey: 'Claud_Skor', color: 'orange' }
-            ];
-
             const avgs = {};
-
-            models.forEach(m => {
-                const validScores = data.filter(r => r[m.scoreKey] != null).map(r => r[m.scoreKey]);
+            Object.keys(MODEL_CONFIG).forEach(mKey => {
+                const config = MODEL_CONFIG[mKey];
+                const validScores = data.filter(r => r[config.scoreKey] != null).map(r => r[config.scoreKey]);
                 const sum = validScores.reduce((a, b) => a + b, 0);
-                avgs[m.key] = validScores.length ? (sum / validScores.length).toFixed(2) : 0;
+                avgs[mKey] = validScores.length ? (sum / validScores.length).toFixed(2) : 0;
             });
 
-            // UI Güncelle
-            document.getElementById('geminiAvg').innerText = avgs['Gemini'];
-            document.getElementById('gptAvg').innerText = avgs['Chatgpt'];
-            document.getElementById('claudeAvg').innerText = avgs['Claud'];
+            // Kartları Güncelle
+            document.getElementById('geminiAvg').innerText = avgs.gemini;
+            document.getElementById('gptAvg').innerText = avgs.gpt;
+            document.getElementById('claudeAvg').innerText = avgs.claude;
 
             // --- 2. Grafik Çizimi ---
             const ctx = document.getElementById('comparisonChart').getContext('2d');
-            new Chart(ctx, {
+            
+            // Eğer daha önce çizildiyse yok et (Dosya değiştirme durumunda)
+            if(window.myChart) window.myChart.destroy();
+
+            window.myChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: ['Gemini 1.5 Pro', 'ChatGPT-4o', 'Claude 3.5 Sonnet'],
+                    labels: [MODEL_CONFIG.gemini.displayName, MODEL_CONFIG.gpt.displayName, MODEL_CONFIG.claude.displayName],
                     datasets: [{
                         label: 'Ortalama Okunabilirlik Skoru',
-                        data: [avgs['Gemini'], avgs['Chatgpt'], avgs['Claud']],
+                        data: [avgs.gemini, avgs.gpt, avgs.claude],
                         backgroundColor: [
-                            'rgba(59, 130, 246, 0.6)', // Blue
-                            'rgba(34, 197, 94, 0.6)',  // Green
-                            'rgba(249, 115, 22, 0.6)'  // Orange
+                            'rgba(59, 130, 246, 0.8)', // Blue
+                            'rgba(16, 185, 129, 0.8)', // Emerald
+                            'rgba(249, 115, 22, 0.8)'  // Orange
                         ],
-                        borderColor: [
-                            'rgb(59, 130, 246)',
-                            'rgb(34, 197, 94)',
-                            'rgb(249, 115, 22)'
-                        ],
-                        borderWidth: 1
+                        borderRadius: 6,
+                        barPercentage: 0.6
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1e293b',
+                            padding: 12,
+                            titleFont: { size: 14 },
+                            bodyFont: { size: 14 }
+                        }
+                    },
                     scales: {
-                        y: { beginAtZero: true, max: 100 }
+                        y: { 
+                            beginAtZero: true, 
+                            max: 100,
+                            grid: { color: '#f1f5f9' },
+                            ticks: { font: { family: "'Segoe UI', sans-serif" } }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { family: "'Segoe UI', sans-serif", weight: 'bold' } }
+                        }
                     }
                 }
             });
@@ -174,57 +218,75 @@
 
                 const cardId = `report-${index}`;
                 
-                // Kart HTML Yapısı
+                // Metinleri hazırla
+                const originalText = row['Gerçek'] || 'Veri Yok';
+                const geminiText = formatMarkdown(row[MODEL_CONFIG.gemini.key]);
+                const gptText = formatMarkdown(row[MODEL_CONFIG.gpt.key]);
+                const claudeText = formatMarkdown(row[MODEL_CONFIG.claude.key]);
+                
                 const cardHtml = `
-                <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                    <div class="p-4 bg-gray-50 border-b border-gray-200">
-                        <h4 class="font-bold text-gray-700 mb-2 flex items-center">
-                            <span class="bg-gray-800 text-white text-xs px-2 py-1 rounded mr-2">RAPOR #${index + 1}</span>
-                            Orijinal Radyoloji Raporu
-                        </h4>
-                        <p class="text-sm text-gray-600 font-mono whitespace-pre-wrap">${row['Gerçek'] || 'Veri Yok'}</p>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all duration-300">
+                    <div class="p-5 bg-slate-50 border-b border-slate-200">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="font-bold text-slate-700 flex items-center">
+                                <span class="bg-slate-800 text-white text-[10px] px-2 py-1 rounded mr-2 tracking-wider">RAPOR #${index + 1}</span>
+                                Orijinal Radyoloji Raporu
+                            </h4>
+                        </div>
+                        <p class="text-sm text-slate-600 font-mono whitespace-pre-wrap leading-relaxed">${originalText}</p>
                     </div>
 
-                    <div class="p-4">
-                        <div class="flex space-x-4 border-b border-gray-200 mb-4 text-sm">
-                            <button onclick="switchTab('${cardId}', 'gemini')" class="tab-btn px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600 focus:outline-none" id="btn-${cardId}-gemini">Gemini</button>
-                            <button onclick="switchTab('${cardId}', 'gpt')" class="tab-btn px-4 py-2 font-medium text-gray-500 hover:text-gray-700 focus:outline-none" id="btn-${cardId}-gpt">ChatGPT</button>
-                            <button onclick="switchTab('${cardId}', 'claude')" class="tab-btn px-4 py-2 font-medium text-gray-500 hover:text-gray-700 focus:outline-none" id="btn-${cardId}-claude">Claude</button>
+                    <div class="p-5">
+                        <div class="flex space-x-1 bg-slate-100 p-1 rounded-lg mb-5 w-full md:w-fit text-sm">
+                            <button onclick="switchTab('${cardId}', 'gemini')" id="btn-${cardId}-gemini" class="tab-btn flex-1 md:flex-none px-4 py-2 rounded-md font-medium text-slate-500 hover:text-slate-700 focus:outline-none transition-all">Gemini 3 Pro</button>
+                            <button onclick="switchTab('${cardId}', 'gpt')" id="btn-${cardId}-gpt" class="tab-btn flex-1 md:flex-none px-4 py-2 rounded-md font-medium text-slate-500 hover:text-slate-700 focus:outline-none transition-all">GPT 5.1</button>
+                            <button onclick="switchTab('${cardId}', 'claude')" id="btn-${cardId}-claude" class="tab-btn flex-1 md:flex-none px-4 py-2 rounded-md font-medium text-slate-500 hover:text-slate-700 focus:outline-none transition-all">Claude Sonnet</button>
                         </div>
 
                         <div id="content-${cardId}-gemini" class="tab-content">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="text-xs font-bold text-blue-600">Gemini 1.5 Pro</span>
-                                ${getBadgeHtml(row['Gemini_Skor'])}
+                            <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
+                                <span class="text-sm font-bold text-blue-600 flex items-center gap-1">
+                                    <span class="w-2 h-2 rounded-full bg-blue-500"></span> ${MODEL_CONFIG.gemini.displayName}
+                                </span>
+                                ${getBadgeHtml(row[MODEL_CONFIG.gemini.scoreKey])}
                             </div>
-                            <div class="text-gray-800 text-sm whitespace-pre-wrap p-3 bg-blue-50 rounded border border-blue-100">${row['Gemini'] || 'Çıktı yok'}</div>
+                            <div class="text-slate-800 text-sm whitespace-pre-wrap p-4 bg-blue-50/50 rounded-lg border border-blue-100/50 leading-relaxed">${geminiText}</div>
                         </div>
 
                         <div id="content-${cardId}-gpt" class="tab-content hidden-tab">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="text-xs font-bold text-green-600">ChatGPT-4o</span>
-                                ${getBadgeHtml(row['Chatgpt_Skor'])}
+                            <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
+                                <span class="text-sm font-bold text-emerald-600 flex items-center gap-1">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> ${MODEL_CONFIG.gpt.displayName}
+                                </span>
+                                ${getBadgeHtml(row[MODEL_CONFIG.gpt.scoreKey])}
                             </div>
-                            <div class="text-gray-800 text-sm whitespace-pre-wrap p-3 bg-green-50 rounded border border-green-100">${row['Chatgpt'] || 'Çıktı yok'}</div>
+                            <div class="text-slate-800 text-sm whitespace-pre-wrap p-4 bg-emerald-50/50 rounded-lg border border-emerald-100/50 leading-relaxed">${gptText}</div>
                         </div>
 
                         <div id="content-${cardId}-claude" class="tab-content hidden-tab">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="text-xs font-bold text-orange-600">Claude 3.5 Sonnet</span>
-                                ${getBadgeHtml(row['Claud_Skor'])}
+                            <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
+                                <span class="text-sm font-bold text-orange-600 flex items-center gap-1">
+                                    <span class="w-2 h-2 rounded-full bg-orange-500"></span> ${MODEL_CONFIG.claude.displayName}
+                                </span>
+                                ${getBadgeHtml(row[MODEL_CONFIG.claude.scoreKey])}
                             </div>
-                            <div class="text-gray-800 text-sm whitespace-pre-wrap p-3 bg-orange-50 rounded border border-orange-100">${row['Claud'] || 'Çıktı yok'}</div>
+                            <div class="text-slate-800 text-sm whitespace-pre-wrap p-4 bg-orange-50/50 rounded-lg border border-orange-100/50 leading-relaxed">${claudeText}</div>
                         </div>
                     </div>
                 </div>
                 `;
                 listContainer.insertAdjacentHTML('beforeend', cardHtml);
             });
+            
+            // İlk tabları aç (Hepsinde ilk modeli seçili getir)
+            // Varsayılan olarak hepsinde ilk butonu aktif yapmamız lazım, CSS halletmiyor.
+             document.querySelectorAll('[id^="btn-"][id$="-gemini"]').forEach(btn => {
+                 btn.classList.add('bg-white', 'text-blue-700', 'shadow-sm', 'font-bold');
+             });
         }
 
-        // Skor Rozeti Oluşturucu
         function getBadgeHtml(score) {
-            if (score == null) return '<span class="text-gray-400 text-xs">Skor Yok</span>';
+            if (score == null) return '<span class="text-slate-300 text-xs">Skor Yok</span>';
             let cssClass = 'score-low';
             let label = 'Zor';
             
@@ -234,34 +296,28 @@
             return `<span class="score-badge ${cssClass}">Ateşman: ${score.toFixed(1)} (${label})</span>`;
         }
 
-        // Tab Değiştirme Fonksiyonu
         window.switchTab = function(cardId, model) {
-            // Tüm içerikleri gizle
+            // 1. İçerikleri Gizle/Göster
             document.getElementById(`content-${cardId}-gemini`).classList.add('hidden-tab');
             document.getElementById(`content-${cardId}-gpt`).classList.add('hidden-tab');
             document.getElementById(`content-${cardId}-claude`).classList.add('hidden-tab');
 
-            // Tüm buton stillerini sıfırla
-            resetBtn(cardId, 'gemini');
-            resetBtn(cardId, 'gpt');
-            resetBtn(cardId, 'claude');
-
-            // Seçileni göster
             document.getElementById(`content-${cardId}-${model}`).classList.remove('hidden-tab');
-            
-            // Buton stilini aktif yap
-            const activeBtn = document.getElementById(`btn-${cardId}-${model}`);
-            activeBtn.classList.remove('text-gray-500', 'border-transparent');
-            
-            // Modele göre renk ata
-            if(model === 'gemini') activeBtn.classList.add('text-blue-600', 'border-blue-600', 'border-b-2');
-            if(model === 'gpt') activeBtn.classList.add('text-green-600', 'border-green-600', 'border-b-2');
-            if(model === 'claude') activeBtn.classList.add('text-orange-600', 'border-orange-600', 'border-b-2');
-        }
 
-        function resetBtn(cardId, model) {
-            const btn = document.getElementById(`btn-${cardId}-${model}`);
-            btn.className = "tab-btn px-4 py-2 font-medium text-gray-500 hover:text-gray-700 focus:outline-none border-b-2 border-transparent";
+            // 2. Buton Stillerini Sıfırla
+            ['gemini', 'gpt', 'claude'].forEach(m => {
+                const btn = document.getElementById(`btn-${cardId}-${m}`);
+                btn.className = "tab-btn flex-1 md:flex-none px-4 py-2 rounded-md font-medium text-slate-500 hover:text-slate-700 focus:outline-none transition-all";
+            });
+
+            // 3. Aktif Butonu Boya
+            const activeBtn = document.getElementById(`btn-${cardId}-${model}`);
+            activeBtn.classList.remove('text-slate-500', 'hover:text-slate-700');
+            activeBtn.classList.add('bg-white', 'shadow-sm', 'font-bold');
+            
+            if(model === 'gemini') activeBtn.classList.add('text-blue-700');
+            if(model === 'gpt') activeBtn.classList.add('text-emerald-700');
+            if(model === 'claude') activeBtn.classList.add('text-orange-700');
         }
     </script>
 </body>
