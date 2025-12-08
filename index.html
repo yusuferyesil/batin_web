@@ -3,321 +3,514 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>İleri Seviye Radyoloji Raporu Analizi</title>
+    <title>LLM Karşılaştırmalı Analiz Paneli | Blind Test</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        modelA: { light: '#e0e7ff', DEFAULT: '#6366f1', dark: '#4338ca' }, // Indigo
+                        modelB: { light: '#fce7f3', DEFAULT: '#ec4899', dark: '#be185d' }, // Pink
+                        modelC: { light: '#cffafe', DEFAULT: '#06b6d4', dark: '#0e7490' }, // Cyan
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; }
-        .score-badge { padding: 4px 8px; border-radius: 9999px; font-weight: bold; font-size: 0.75rem; letter-spacing: 0.025em; }
-        .score-high { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; } 
-        .score-med { background-color: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
-        .score-low { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        /* Genel Ayarlar */
+        body { background-color: #f8fafc; color: #334155; -webkit-font-smoothing: antialiased; }
         
-        .tab-btn { transition: all 0.2s; }
-        .tab-btn.active { border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: 600; }
-        .hidden-tab { display: none; }
+        /* Scrollbar İyileştirmesi */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Kart Efektleri */
+        .glass-panel { background: white; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+        .glass-panel:hover { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
+
+        /* Formatlama Stilleri */
+        .md-bold { background-color: #fffbeb; color: #1e293b; font-weight: 700; padding: 0 4px; border-radius: 4px; border: 1px solid #fef3c7; }
+        .md-italic { font-style: italic; color: #64748b; }
         
-        /* Markdown Bold Stili */
-        strong { font-weight: 700; color: #0f172a; background-color: #fffbeb; padding: 0 2px; border-radius: 2px; }
+        /* Başlıklar */
+        .md-header-1 { font-size: 1.4rem; font-weight: 800; color: #0f172a; margin-top: 1.5rem; margin-bottom: 0.75rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.25rem; }
+        .md-header-2 { font-size: 1.25rem; font-weight: 700; color: #1e293b; margin-top: 1.25rem; margin-bottom: 0.5rem; border-left: 5px solid #6366f1; padding-left: 0.75rem; background-color: #f8fafc; padding-top: 0.25rem; padding-bottom: 0.25rem; }
+        .md-header-3 { font-size: 1.1rem; font-weight: 600; color: #334155; margin-top: 1rem; margin-bottom: 0.5rem; border-left: 4px solid #cbd5e1; padding-left: 0.75rem; }
+
+        /* Skor Badge */
+        .badge { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.025em; }
+        .badge-easy { background-color: #dcfce7; color: #166534; border: 1px solid #86efac; }
+        .badge-med { background-color: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+        .badge-hard { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+        /* Tab Animasyonları */
+        .tab-btn { position: relative; color: #64748b; transition: all 0.2s ease; }
+        .tab-btn:hover { color: #334155; background-color: #f8fafc; }
+        .tab-btn.active { color: #0f172a; font-weight: 600; background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background-color: currentColor; }
+        
+        /* Model Renkleri için Active State Overrides */
+        .tab-btn.active-modelA { color: #4338ca !important; }
+        .tab-btn.active-modelA::after { background-color: #6366f1; }
+        
+        .tab-btn.active-modelB { color: #be185d !important; }
+        .tab-btn.active-modelB::after { background-color: #ec4899; }
+        
+        .tab-btn.active-modelC { color: #0e7490 !important; }
+        .tab-btn.active-modelC::after { background-color: #06b6d4; }
     </style>
 </head>
-<body class="p-6 text-slate-800">
+<body class="min-h-screen flex flex-col">
 
-    <div class="max-w-7xl mx-auto">
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-bold text-lg">A</div>
+                    <div>
+                        <h1 class="text-lg font-bold text-slate-900 leading-tight">Analiz Paneli</h1>
+                        <p class="text-xs text-slate-500 font-medium">Blind Test v2.2 • Profesyonel Sürüm</p>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <label class="cursor-pointer bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        <span>Veri Yükle (.xlsx)</span>
+                        <input type="file" id="fileInput" accept=".xlsx, .csv" class="hidden">
+                    </label>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        <header class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div>
-                <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                    🏥 Radyoloji Raporu Sadeleştirme Analizi
-                    <span class="bg-indigo-100 text-indigo-700 text-xs px-2 py-1 rounded-full border border-indigo-200">v2.0 Next-Gen</span>
-                </h1>
-                <p class="text-slate-500 text-sm mt-1">GPT 5.1, Gemini 3 Pro ve Claude Sonnet 4.5 Modellerinin Performans Karşılaştırması</p>
+        <div id="loadingState" class="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border-2 border-dashed border-slate-200 text-center">
+            <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
+                <svg class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
             </div>
-            
-            <div class="relative w-full md:w-auto">
-                <input type="file" id="fileInput" accept=".xlsx, .csv" class="block w-full text-sm text-slate-500
-                  file:mr-4 file:py-2.5 file:px-4
-                  file:rounded-full file:border-0
-                  file:text-sm file:font-semibold
-                  file:bg-indigo-50 file:text-indigo-700
-                  hover:file:bg-indigo-100 cursor-pointer transition-colors"/>
-                <p class="text-[10px] text-slate-400 mt-1 pl-2 text-center md:text-left">Lütfen 'raporlamason_detayli_skorlar.xlsx' dosyasını seçin.</p>
-            </div>
-        </header>
-
-        <div id="loadingMessage" class="flex flex-col items-center justify-center p-20 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
-            <svg class="w-16 h-16 mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-            <p class="text-xl font-medium">Verileri görüntülemek için Excel dosyasını yükleyiniz.</p>
+            <h3 class="text-xl font-semibold text-slate-900 mb-2">Henüz Veri Yüklenmedi</h3>
+            <p class="text-slate-500 max-w-md mx-auto mb-6">Analiz sonuçlarını görüntülemek için lütfen 'raporlamason_detayli_skorlar.xlsx' dosyasını sağ üstteki butondan yükleyiniz.</p>
         </div>
 
-        <div id="dashboardContent" class="hidden animate-fade-in">
+        <div id="dashboardContent" class="hidden space-y-8">
             
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500 text-center hover:shadow-md transition-shadow">
-                    <h3 class="text-blue-600 font-bold text-lg flex items-center justify-center gap-2">
-                        Gemini 3 Pro Preview
-                    </h3>
-                    <div class="text-4xl font-extrabold text-slate-800 my-3 tracking-tight" id="geminiAvg">0.0</div>
-                    <p class="text-xs text-slate-400 font-medium uppercase tracking-wide">Ortalama Ateşman Skoru</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="glass-panel rounded-xl p-6 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <svg class="w-24 h-24 text-modelA-DEFAULT" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z"/></svg>
+                    </div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="w-3 h-3 rounded-full bg-modelA-DEFAULT"></span>
+                            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider">MODEL A</h3>
+                        </div>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-4xl font-bold text-slate-800" id="statA">0.00</span>
+                            <span class="text-sm font-medium text-slate-400">Ort. Skor</span>
+                        </div>
+                        <div class="mt-4 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div id="barA" class="h-full bg-modelA-DEFAULT rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500 text-center hover:shadow-md transition-shadow">
-                    <h3 class="text-emerald-600 font-bold text-lg flex items-center justify-center gap-2">
-                        GPT 5.1
-                    </h3>
-                    <div class="text-4xl font-extrabold text-slate-800 my-3 tracking-tight" id="gptAvg">0.0</div>
-                    <p class="text-xs text-slate-400 font-medium uppercase tracking-wide">Ortalama Ateşman Skoru</p>
+
+                <div class="glass-panel rounded-xl p-6 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <svg class="w-24 h-24 text-modelB-DEFAULT" fill="currentColor" viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
+                    </div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="w-3 h-3 rounded-full bg-modelB-DEFAULT"></span>
+                            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider">MODEL B</h3>
+                        </div>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-4xl font-bold text-slate-800" id="statB">0.00</span>
+                            <span class="text-sm font-medium text-slate-400">Ort. Skor</span>
+                        </div>
+                        <div class="mt-4 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div id="barB" class="h-full bg-modelB-DEFAULT rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-orange-500 text-center hover:shadow-md transition-shadow">
-                    <h3 class="text-orange-600 font-bold text-lg flex items-center justify-center gap-2">
-                        Claude Sonnet 4.5
-                        <span class="text-[0.6rem] bg-orange-100 px-1 rounded text-orange-700">20250929</span>
-                    </h3>
-                    <div class="text-4xl font-extrabold text-slate-800 my-3 tracking-tight" id="claudeAvg">0.0</div>
-                    <p class="text-xs text-slate-400 font-medium uppercase tracking-wide">Ortalama Ateşman Skoru</p>
+
+                <div class="glass-panel rounded-xl p-6 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <svg class="w-24 h-24 text-modelC-DEFAULT" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                    </div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="w-3 h-3 rounded-full bg-modelC-DEFAULT"></span>
+                            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider">MODEL C</h3>
+                        </div>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-4xl font-bold text-slate-800" id="statC">0.00</span>
+                            <span class="text-sm font-medium text-slate-400">Ort. Skor</span>
+                        </div>
+                        <div class="mt-4 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div id="barC" class="h-full bg-modelC-DEFAULT rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-lg font-bold text-slate-700">Model Performans Karşılaştırması</h2>
-                    <span class="text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100">Yüksek skor = Daha kolay anlaşılır</span>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="glass-panel rounded-xl p-6 lg:col-span-1">
+                    <h3 class="text-sm font-bold text-slate-700 mb-4">Genel Performans</h3>
+                    <div class="h-64">
+                        <canvas id="barChart"></canvas>
+                    </div>
                 </div>
-                <div class="h-72 w-full">
-                    <canvas id="comparisonChart"></canvas>
+                <div class="glass-panel rounded-xl p-6 lg:col-span-2">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-sm font-bold text-slate-700">Skor Kararlılık Analizi (Rapor Bazlı)</h3>
+                        <div class="flex gap-2">
+                            <span class="flex items-center text-xs text-slate-500"><span class="w-2 h-2 rounded-full bg-modelA-DEFAULT mr-1"></span>A</span>
+                            <span class="flex items-center text-xs text-slate-500"><span class="w-2 h-2 rounded-full bg-modelB-DEFAULT mr-1"></span>B</span>
+                            <span class="flex items-center text-xs text-slate-500"><span class="w-2 h-2 rounded-full bg-modelC-DEFAULT mr-1"></span>C</span>
+                        </div>
+                    </div>
+                    <div class="h-64">
+                        <canvas id="lineChart"></canvas>
+                    </div>
                 </div>
             </div>
 
-            <div class="flex items-center gap-2 mb-6">
-                 <h2 class="text-xl font-bold text-slate-800">🔍 Detaylı Rapor Analizi</h2>
-                 <span class="text-xs font-normal text-slate-500 bg-white px-2 py-1 rounded-full border border-slate-200" id="totalCountBadge">0 Rapor</span>
-            </div>
-           
-            <div id="reportList" class="space-y-8">
+            <div class="space-y-4">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center gap-2">
+                        <span class="bg-slate-100 text-slate-600 text-xs font-bold px-3 py-1.5 rounded-full border border-slate-200" id="countBadge">0 Rapor</span>
+                        <h2 class="text-lg font-bold text-slate-800">Detaylı İnceleme</h2>
+                    </div>
+                    
+                    <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                        <div class="relative group">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg class="h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            </div>
+                            <input type="text" id="searchInput" placeholder="Rapor içeriğinde ara..." class="pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm w-full sm:w-64 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
+                        </div>
+                        
+                        <div class="relative">
+                            <select id="sortSelect" class="appearance-none pl-4 pr-10 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer w-full sm:w-auto">
+                                <option value="default">Varsayılan Sıralama</option>
+                                <option value="score_asc">Skora Göre Artan (Zor -> Kolay)</option>
+                                <option value="score_desc">Skora Göre Azalan (Kolay -> Zor)</option>
+                            </select>
+                            <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                                <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
+                <div id="reportList" class="space-y-6">
+                    </div>
+            </div>
+            
+            <footer class="text-center text-xs text-slate-400 py-8 border-t border-slate-200 mt-12">
+                <p>© 2025 Radyoloji Analiz Projesi. Bu çalışma akademik araştırma amaçlıdır.</p>
+                <p class="mt-1">Veriler tarayıcınızda işlenir, sunucuya gönderilmez.</p>
+            </footer>
         </div>
-
-    </div>
+    </main>
 
     <script>
-        // --- AYARLAR: Model İsimleri ve Eşleşmeleri ---
-        // key: Excel dosyasındaki sütun başlığı (Değiştirmeyin)
-        // displayName: Ekranda görünecek havalı isim (Burayı değiştirebilirsiniz)
-        const MODEL_CONFIG = {
-            gemini: { key: 'Gemini', scoreKey: 'Gemini_Skor', displayName: 'Gemini 3 Pro Preview', color: '#3b82f6', bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700' },
-            gpt:    { key: 'Chatgpt', scoreKey: 'Chatgpt_Skor', displayName: 'GPT 5.1', color: '#10b981', bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700' },
-            claude: { key: 'Claud', scoreKey: 'Claud_Skor', displayName: 'Claude Sonnet 4.5 (20250929)', color: '#f97316', bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700' }
+        // CONFIG
+        const MODELS = {
+            A: { key: 'Gemini', scoreKey: 'Gemini_Skor', color: '#6366f1', label: 'Model A' },
+            B: { key: 'Chatgpt', scoreKey: 'Chatgpt_Skor', color: '#ec4899', label: 'Model B' },
+            C: { key: 'Claud', scoreKey: 'Claud_Skor', color: '#06b6d4', label: 'Model C' }
         };
 
-        document.getElementById('fileInput').addEventListener('change', handleFile, false);
+        let GLOBAL_DATA = [];
+        let FILTERED_DATA = [];
 
+        // INIT
+        document.getElementById('fileInput').addEventListener('change', handleFile);
+        document.getElementById('searchInput').addEventListener('input', handleFilter);
+        document.getElementById('sortSelect').addEventListener('change', handleFilter);
+
+        // FILE HANDLING
         function handleFile(e) {
             const file = e.target.files[0];
+            if(!file) return;
+            
             const reader = new FileReader();
-
             reader.onload = function(event) {
                 const data = new Uint8Array(event.target.result);
                 const workbook = XLSX.read(data, {type: 'array'});
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                const rawData = XLSX.utils.sheet_to_json(firstSheet);
-                
-                // Sütun isimlerini temizle
-                const jsonData = rawData.map(row => {
-                    const newRow = {};
-                    Object.keys(row).forEach(key => { newRow[key.trim()] = row[key]; });
-                    return newRow;
-                });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const json = XLSX.utils.sheet_to_json(sheet);
 
-                processData(jsonData);
+                // Normalize Data
+                GLOBAL_DATA = json.map((row, i) => {
+                    const cleanRow = { id: i, original: row['Gerçek'] || '' };
+                    // Keys might have spaces
+                    Object.keys(row).forEach(k => {
+                        const val = row[k];
+                        const trimK = k.trim();
+                        if(trimK === MODELS.A.key) cleanRow.textA = val;
+                        if(trimK === MODELS.B.key) cleanRow.textB = val;
+                        if(trimK === MODELS.C.key) cleanRow.textC = val;
+                        if(trimK === MODELS.A.scoreKey) cleanRow.scoreA = val;
+                        if(trimK === MODELS.B.scoreKey) cleanRow.scoreB = val;
+                        if(trimK === MODELS.C.scoreKey) cleanRow.scoreC = val;
+                    });
+                    
+                    // Calc Avg Score for sorting
+                    const scores = [cleanRow.scoreA, cleanRow.scoreB, cleanRow.scoreC].filter(s => s != null);
+                    cleanRow.avgScore = scores.length ? scores.reduce((a,b)=>a+b,0)/scores.length : 0;
+                    
+                    return cleanRow;
+                }).filter(r => r.original.length > 5); // Filter empty rows
+
+                FILTERED_DATA = [...GLOBAL_DATA];
+                
+                initDashboard();
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // Markdown Formatlayıcı (**text** -> bold)
-        function formatMarkdown(text) {
-            if (!text) return 'Çıktı yok';
-            return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        function initDashboard() {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('dashboardContent').classList.remove('hidden');
+            
+            updateStats();
+            renderCharts();
+            renderList();
         }
 
-        function processData(data) {
-            document.getElementById('loadingMessage').classList.add('hidden');
-            document.getElementById('dashboardContent').classList.remove('hidden');
-            document.getElementById('totalCountBadge').innerText = `${data.length} Rapor`;
+        // STATS
+        function updateStats() {
+            const getAvg = (key) => {
+                const vals = GLOBAL_DATA.map(r => r[key]).filter(v => v != null);
+                return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2) : '0.00';
+            };
 
-            // --- 1. İstatistik Hesaplama ---
-            const avgs = {};
-            Object.keys(MODEL_CONFIG).forEach(mKey => {
-                const config = MODEL_CONFIG[mKey];
-                const validScores = data.filter(r => r[config.scoreKey] != null).map(r => r[config.scoreKey]);
-                const sum = validScores.reduce((a, b) => a + b, 0);
-                avgs[mKey] = validScores.length ? (sum / validScores.length).toFixed(2) : 0;
-            });
+            const avgA = getAvg('scoreA');
+            const avgB = getAvg('scoreB');
+            const avgC = getAvg('scoreC');
 
-            // Kartları Güncelle
-            document.getElementById('geminiAvg').innerText = avgs.gemini;
-            document.getElementById('gptAvg').innerText = avgs.gpt;
-            document.getElementById('claudeAvg').innerText = avgs.claude;
+            document.getElementById('statA').innerText = avgA;
+            document.getElementById('statB').innerText = avgB;
+            document.getElementById('statC').innerText = avgC;
 
-            // --- 2. Grafik Çizimi ---
-            const ctx = document.getElementById('comparisonChart').getContext('2d');
-            
-            // Eğer daha önce çizildiyse yok et (Dosya değiştirme durumunda)
-            if(window.myChart) window.myChart.destroy();
+            // Update Progress Bars (assuming max 100)
+            document.getElementById('barA').style.width = `${Math.min(avgA, 100)}%`;
+            document.getElementById('barB').style.width = `${Math.min(avgB, 100)}%`;
+            document.getElementById('barC').style.width = `${Math.min(avgC, 100)}%`;
+        }
 
-            window.myChart = new Chart(ctx, {
+        // CHARTS
+        let chartBar, chartLine;
+
+        function renderCharts() {
+            const ctxBar = document.getElementById('barChart').getContext('2d');
+            const ctxLine = document.getElementById('lineChart').getContext('2d');
+
+            const avgs = [
+                parseFloat(document.getElementById('statA').innerText),
+                parseFloat(document.getElementById('statB').innerText),
+                parseFloat(document.getElementById('statC').innerText)
+            ];
+
+            // 1. Bar Chart
+            if(chartBar) chartBar.destroy();
+            chartBar = new Chart(ctxBar, {
                 type: 'bar',
                 data: {
-                    labels: [MODEL_CONFIG.gemini.displayName, MODEL_CONFIG.gpt.displayName, MODEL_CONFIG.claude.displayName],
+                    labels: ['Model A', 'Model B', 'Model C'],
                     datasets: [{
-                        label: 'Ortalama Okunabilirlik Skoru',
-                        data: [avgs.gemini, avgs.gpt, avgs.claude],
-                        backgroundColor: [
-                            'rgba(59, 130, 246, 0.8)', // Blue
-                            'rgba(16, 185, 129, 0.8)', // Emerald
-                            'rgba(249, 115, 22, 0.8)'  // Orange
-                        ],
+                        data: avgs,
+                        backgroundColor: [MODELS.A.color, MODELS.B.color, MODELS.C.color],
                         borderRadius: 6,
-                        barPercentage: 0.6
+                        barThickness: 40
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: '#1e293b',
-                            padding: 12,
-                            titleFont: { size: 14 },
-                            bodyFont: { size: 14 }
-                        }
-                    },
+                    plugins: { legend: { display: false } },
                     scales: {
-                        y: { 
-                            beginAtZero: true, 
-                            max: 100,
-                            grid: { color: '#f1f5f9' },
-                            ticks: { font: { family: "'Segoe UI', sans-serif" } }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { font: { family: "'Segoe UI', sans-serif", weight: 'bold' } }
-                        }
+                        y: { beginAtZero: true, max: 100, grid: { color: '#f1f5f9' } },
+                        x: { grid: { display: false } }
                     }
                 }
             });
 
-            // --- 3. Rapor Listesini Oluşturma ---
-            const listContainer = document.getElementById('reportList');
-            listContainer.innerHTML = '';
+            // 2. Line Chart (First 30 reports to avoid clutter)
+            const sampleData = GLOBAL_DATA.slice(0, 30); 
+            const labels = sampleData.map(d => `#${d.id+1}`);
+            
+            if(chartLine) chartLine.destroy();
+            chartLine = new Chart(ctxLine, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Model A', data: sampleData.map(d=>d.scoreA), borderColor: MODELS.A.color, backgroundColor: MODELS.A.color, tension: 0.3, pointRadius: 2 },
+                        { label: 'Model B', data: sampleData.map(d=>d.scoreB), borderColor: MODELS.B.color, backgroundColor: MODELS.B.color, tension: 0.3, pointRadius: 2 },
+                        { label: 'Model C', data: sampleData.map(d=>d.scoreC), borderColor: MODELS.C.color, backgroundColor: MODELS.C.color, tension: 0.3, pointRadius: 2 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, max: 100, grid: { color: '#f1f5f9' } },
+                        x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } }
+                    }
+                }
+            });
+        }
 
-            data.forEach((row, index) => {
-                if(!row['Gerçek']) return;
+        // FILTERING
+        function handleFilter() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const sortMode = document.getElementById('sortSelect').value;
 
-                const cardId = `report-${index}`;
+            // 1. Search
+            FILTERED_DATA = GLOBAL_DATA.filter(row => {
+                const combinedText = (row.original + row.textA + row.textB + row.textC).toLowerCase();
+                return combinedText.includes(query);
+            });
+
+            // 2. Sort
+            if(sortMode === 'score_asc') {
+                FILTERED_DATA.sort((a,b) => a.avgScore - b.avgScore);
+            } else if(sortMode === 'score_desc') {
+                FILTERED_DATA.sort((a,b) => b.avgScore - a.avgScore);
+            } else {
+                FILTERED_DATA.sort((a,b) => a.id - b.id); // Default ID
+            }
+
+            renderList();
+        }
+
+        // RENDER LIST
+        function renderList() {
+            const container = document.getElementById('reportList');
+            const countBadge = document.getElementById('countBadge');
+            
+            container.innerHTML = '';
+            countBadge.innerText = `${FILTERED_DATA.length} Rapor`;
+
+            // Pagination limiter (show max 50 to prevent freezing)
+            const displayData = FILTERED_DATA.slice(0, 50);
+
+            displayData.forEach(row => {
+                const card = document.createElement('div');
+                card.className = 'glass-panel rounded-xl overflow-hidden transition-all duration-300';
                 
-                // Metinleri hazırla
-                const originalText = row['Gerçek'] || 'Veri Yok';
-                const geminiText = formatMarkdown(row[MODEL_CONFIG.gemini.key]);
-                const gptText = formatMarkdown(row[MODEL_CONFIG.gpt.key]);
-                const claudeText = formatMarkdown(row[MODEL_CONFIG.claude.key]);
-                
-                const cardHtml = `
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all duration-300">
-                    <div class="p-5 bg-slate-50 border-b border-slate-200">
-                        <div class="flex items-center justify-between mb-3">
-                            <h4 class="font-bold text-slate-700 flex items-center">
-                                <span class="bg-slate-800 text-white text-[10px] px-2 py-1 rounded mr-2 tracking-wider">RAPOR #${index + 1}</span>
-                                Orijinal Radyoloji Raporu
-                            </h4>
-                        </div>
-                        <p class="text-sm text-slate-600 font-mono whitespace-pre-wrap leading-relaxed">${originalText}</p>
-                    </div>
+                // Format texts
+                const fmtA = formatMD(row.textA);
+                const fmtB = formatMD(row.textB);
+                const fmtC = formatMD(row.textC);
 
-                    <div class="p-5">
-                        <div class="flex space-x-1 bg-slate-100 p-1 rounded-lg mb-5 w-full md:w-fit text-sm">
-                            <button onclick="switchTab('${cardId}', 'gemini')" id="btn-${cardId}-gemini" class="tab-btn flex-1 md:flex-none px-4 py-2 rounded-md font-medium text-slate-500 hover:text-slate-700 focus:outline-none transition-all">Gemini 3 Pro</button>
-                            <button onclick="switchTab('${cardId}', 'gpt')" id="btn-${cardId}-gpt" class="tab-btn flex-1 md:flex-none px-4 py-2 rounded-md font-medium text-slate-500 hover:text-slate-700 focus:outline-none transition-all">GPT 5.1</button>
-                            <button onclick="switchTab('${cardId}', 'claude')" id="btn-${cardId}-claude" class="tab-btn flex-1 md:flex-none px-4 py-2 rounded-md font-medium text-slate-500 hover:text-slate-700 focus:outline-none transition-all">Claude Sonnet</button>
-                        </div>
-
-                        <div id="content-${cardId}-gemini" class="tab-content">
-                            <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
-                                <span class="text-sm font-bold text-blue-600 flex items-center gap-1">
-                                    <span class="w-2 h-2 rounded-full bg-blue-500"></span> ${MODEL_CONFIG.gemini.displayName}
-                                </span>
-                                ${getBadgeHtml(row[MODEL_CONFIG.gemini.scoreKey])}
+                card.innerHTML = `
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-0">
+                        <div class="lg:col-span-4 bg-slate-50 p-6 border-b lg:border-b-0 lg:border-r border-slate-200">
+                            <div class="flex items-center gap-2 mb-4">
+                                <span class="bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded">#${row.id + 1}</span>
+                                <h4 class="text-sm font-bold text-slate-700">Orijinal Rapor</h4>
                             </div>
-                            <div class="text-slate-800 text-sm whitespace-pre-wrap p-4 bg-blue-50/50 rounded-lg border border-blue-100/50 leading-relaxed">${geminiText}</div>
+                            <div class="text-xs text-slate-600 font-mono leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto pr-2 custom-scrollbar">${row.original}</div>
                         </div>
 
-                        <div id="content-${cardId}-gpt" class="tab-content hidden-tab">
-                            <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
-                                <span class="text-sm font-bold text-emerald-600 flex items-center gap-1">
-                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> ${MODEL_CONFIG.gpt.displayName}
-                                </span>
-                                ${getBadgeHtml(row[MODEL_CONFIG.gpt.scoreKey])}
+                        <div class="lg:col-span-8 bg-white flex flex-col">
+                            <div class="flex border-b border-slate-100 px-6 pt-4 gap-1 overflow-x-auto">
+                                <button onclick="setTab(this, 'content-${row.id}-A')" class="tab-btn active active-modelA px-4 py-3 text-sm font-medium focus:outline-none flex-shrink-0">
+                                    Model A ${getScoreBadge(row.scoreA)}
+                                </button>
+                                <button onclick="setTab(this, 'content-${row.id}-B')" class="tab-btn px-4 py-3 text-sm font-medium focus:outline-none flex-shrink-0">
+                                    Model B ${getScoreBadge(row.scoreB)}
+                                </button>
+                                <button onclick="setTab(this, 'content-${row.id}-C')" class="tab-btn px-4 py-3 text-sm font-medium focus:outline-none flex-shrink-0">
+                                    Model C ${getScoreBadge(row.scoreC)}
+                                </button>
                             </div>
-                            <div class="text-slate-800 text-sm whitespace-pre-wrap p-4 bg-emerald-50/50 rounded-lg border border-emerald-100/50 leading-relaxed">${gptText}</div>
-                        </div>
 
-                        <div id="content-${cardId}-claude" class="tab-content hidden-tab">
-                            <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
-                                <span class="text-sm font-bold text-orange-600 flex items-center gap-1">
-                                    <span class="w-2 h-2 rounded-full bg-orange-500"></span> ${MODEL_CONFIG.claude.displayName}
-                                </span>
-                                ${getBadgeHtml(row[MODEL_CONFIG.claude.scoreKey])}
+                            <div class="p-6 relative flex-grow bg-white min-h-[300px]">
+                                <div id="content-${row.id}-A" class="model-content animate-fade-in text-sm text-slate-700 leading-7 whitespace-pre-wrap">${fmtA}</div>
+                                <div id="content-${row.id}-B" class="model-content hidden text-sm text-slate-700 leading-7 whitespace-pre-wrap">${fmtB}</div>
+                                <div id="content-${row.id}-C" class="model-content hidden text-sm text-slate-700 leading-7 whitespace-pre-wrap">${fmtC}</div>
                             </div>
-                            <div class="text-slate-800 text-sm whitespace-pre-wrap p-4 bg-orange-50/50 rounded-lg border border-orange-100/50 leading-relaxed">${claudeText}</div>
                         </div>
                     </div>
-                </div>
                 `;
-                listContainer.insertAdjacentHTML('beforeend', cardHtml);
+                container.appendChild(card);
             });
             
-            // İlk tabları aç (Hepsinde ilk modeli seçili getir)
-            // Varsayılan olarak hepsinde ilk butonu aktif yapmamız lazım, CSS halletmiyor.
-             document.querySelectorAll('[id^="btn-"][id$="-gemini"]').forEach(btn => {
-                 btn.classList.add('bg-white', 'text-blue-700', 'shadow-sm', 'font-bold');
-             });
+            if(FILTERED_DATA.length > 50) {
+                const more = document.createElement('div');
+                more.className = 'text-center text-sm text-slate-400 py-4 italic';
+                more.innerText = `... ve ${FILTERED_DATA.length - 50} rapor daha (Performans için gizlendi). Aramayı kullanarak bulunuz.`;
+                container.appendChild(more);
+            }
         }
 
-        function getBadgeHtml(score) {
-            if (score == null) return '<span class="text-slate-300 text-xs">Skor Yok</span>';
-            let cssClass = 'score-low';
-            let label = 'Zor';
-            
-            if (score > 70) { cssClass = 'score-high'; label = 'Çok Kolay'; }
-            else if (score > 50) { cssClass = 'score-med'; label = 'Orta'; }
-            
-            return `<span class="score-badge ${cssClass}">Ateşman: ${score.toFixed(1)} (${label})</span>`;
+        // HELPERS
+        function formatMD(text) {
+            if(!text) return '<span class="text-slate-300 italic">Veri Yok</span>';
+            return text
+                .replace(/</g, "&lt;")
+                // ### Başlık
+                .replace(/^### (.*$)/gm, '<h3 class="md-header-3">$1</h3>')
+                // # Başlık (Bazı markdownlarda)
+                .replace(/^# (.*$)/gm, '<h1 class="md-header-1">$1</h1>')
+                // ## Başlık (İstediğiniz büyük bold header)
+                .replace(/^##\s?(.*$)/gm, '<h2 class="md-header-2">$1</h2>')
+                // **Bold**
+                .replace(/\*\*(.*?)\*\*/g, '<span class="md-bold">$1</span>')
+                // *Italic*
+                .replace(/([^\n])\*(.*?)\*/g, '$1<span class="md-italic">$2</span>');
         }
 
-        window.switchTab = function(cardId, model) {
-            // 1. İçerikleri Gizle/Göster
-            document.getElementById(`content-${cardId}-gemini`).classList.add('hidden-tab');
-            document.getElementById(`content-${cardId}-gpt`).classList.add('hidden-tab');
-            document.getElementById(`content-${cardId}-claude`).classList.add('hidden-tab');
+        function getScoreBadge(score) {
+            if(score == null) return '';
+            let cls = 'badge-hard';
+            if(score > 70) cls = 'badge-easy';
+            else if(score > 50) cls = 'badge-med';
+            return `<span class="ml-2 badge ${cls}">${score.toFixed(2)}</span>`;
+        }
 
-            document.getElementById(`content-${cardId}-${model}`).classList.remove('hidden-tab');
-
-            // 2. Buton Stillerini Sıfırla
-            ['gemini', 'gpt', 'claude'].forEach(m => {
-                const btn = document.getElementById(`btn-${cardId}-${m}`);
-                btn.className = "tab-btn flex-1 md:flex-none px-4 py-2 rounded-md font-medium text-slate-500 hover:text-slate-700 focus:outline-none transition-all";
+        // GLOBAL TAB SWITCHER
+        window.setTab = function(btn, contentId) {
+            // Find container
+            const parent = btn.parentElement;
+            const contentContainer = parent.nextElementSibling;
+            
+            // Reset Buttons
+            Array.from(parent.children).forEach(b => {
+                b.className = b.className.replace(/active(-model[ABC])?/g, '').trim();
+                b.classList.add('tab-btn'); // ensure base class
             });
-
-            // 3. Aktif Butonu Boya
-            const activeBtn = document.getElementById(`btn-${cardId}-${model}`);
-            activeBtn.classList.remove('text-slate-500', 'hover:text-slate-700');
-            activeBtn.classList.add('bg-white', 'shadow-sm', 'font-bold');
             
-            if(model === 'gemini') activeBtn.classList.add('text-blue-700');
-            if(model === 'gpt') activeBtn.classList.add('text-emerald-700');
-            if(model === 'claude') activeBtn.classList.add('text-orange-700');
+            // Activate Button
+            const modelType = btn.innerText.includes('Model A') ? 'active-modelA' : 
+                              btn.innerText.includes('Model B') ? 'active-modelB' : 'active-modelC';
+            btn.classList.add('active', modelType);
+
+            // Toggle Content
+            Array.from(contentContainer.children).forEach(div => div.classList.add('hidden'));
+            document.getElementById(contentId).classList.remove('hidden');
         }
     </script>
 </body>
