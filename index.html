@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LLM Karşılaştırmalı Analiz Paneli | Blind Test</title>
+    <title>Batın Web</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -413,7 +413,7 @@
             countBadge.innerText = `${FILTERED_DATA.length} Rapor`;
 
             // Pagination limiter (show max 50 to prevent freezing)
-            const displayData = FILTERED_DATA.slice(0, 50);
+            const displayData = FILTERED_DATA.slice(0, 150);
 
             displayData.forEach(row => {
                 const card = document.createElement('div');
@@ -458,7 +458,7 @@
                 container.appendChild(card);
             });
             
-            if(FILTERED_DATA.length > 50) {
+            if(FILTERED_DATA.length > 150) {
                 const more = document.createElement('div');
                 more.className = 'text-center text-sm text-slate-400 py-4 italic';
                 more.innerText = `... ve ${FILTERED_DATA.length - 50} rapor daha (Performans için gizlendi). Aramayı kullanarak bulunuz.`;
